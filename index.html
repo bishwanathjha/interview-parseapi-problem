@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Interview Listing page</title>
+	<script type="text/javascript" src="http://underscorejs.org/underscore.js"></script>
+	<script type="text/javascript" src="http://code.jquery.com/jquery.js"></script>
+	<script type="text/javascript" src="http://backbonejs.org/backbone.js"></script>
+	<style>
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+input[type=text], select {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+input[type=submit] {
+    width: 100%;
+    background-color: #4CAF50;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+input[type=submit]:hover {
+    background-color: #45a049;
+}
+
+div {
+    border-radius: 5px;
+    background-color: #f2f2f2;
+    padding: 20px;
+}
+</style>
+</head>
+<body>
+<script>
+$(document).ready(function(){
+	var _baseURL = 'http://localhost/workarea/was-test'
+	var Interview = Backbone.Model.extend({
+	    initialize: function(options) {
+	    	this.objectId = (options) ? options.objectId : '';
+	    },
+
+	    validate: function (attr) {
+	    	// TODO do some input validation
+	    },
+
+	    url: function() {
+	    	return 'http://localhost/workarea/was-test/api/classes/interview/' + this.objectId;
+	    }
+	});
+
+	var View = Backbone.View.extend({
+		el: $('#main'),
+
+		events: {
+			'submit #create-interview': 'create',
+			'click .edit': 'edit',
+			'click .delete': 'delete'
+		},
+
+		initialize: function() {
+			var self = this;
+			var interview = new Interview().fetch({
+			success: function (response) {
+				self.renderView(response);
+			},
+		    error: function (model, xhr){
+		  		console.log("There is an error" + model);
+		  		console.log(xhr)
+		    }
+			});
+		},
+
+	// Render interviews listing
+	renderView: function(response) {
+		var data = response.attributes.results;
+
+		var html = "<table><tr><th>Object ID</th><th>Full name</th><th>Date</th><th>Action</th></tr>";
+		for (var i = 0; i < data.length; i++) {
+			html += "<tr><td>" + data[i].objectId + "</td>";
+			html += "<td>" + data[i].firstName + " " + data[i].lastName + "</td>";
+			html += "<td>" + data[i].interviewDate + "</td>";
+			html += "<td><a href='#' id='"+data[i].objectId+"' class='edit'>Edit</a> <a class='delete' href='#' id='"+data[i].objectId+"'> Delete</a></td></tr>";
+		}
+
+		html += "</table>"
+
+		$('#main').append(html);
+	},
+
+	edit: function(e) {
+		var id = $(e.target).attr('id');
+		var interview = new Interview({'objectId': id}).fetch({
+			success: function (response) {
+				$('#fname').val(response.attributes.firstName);
+				$('#lname').val(response.attributes.lastName);
+				$('#number').val(response.attributes.interviewNumber);
+				$('#date').val(response.attributes.interviewDate);
+				$('#intrested').val((response.attributes.interviewDate) ? 'yes' : 'no');
+				$('#in-id').val(response.attributes.objectId);
+				$("#submit").val("Edit");
+			},
+		    error: function (model, xhr){
+		  		console.log("There is an error" + model);
+		  		console.log(xhr)
+		    }
+		});
+	},
+
+	create: function(e) {
+		e.preventDefault();
+		var inID = $('#in-id').val();
+		var fname = $('#fname').val();
+		var lname = $('#lname').val();
+		var number = parseInt($('#number').val());
+		var date = $('#date').val();
+		var intrested = $('#intrested').val() == 'yes' ? true : false;
+
+		var IntModel = null;
+		if (inID) {
+			IntModel = new Interview({'objectID': inID, 'update': true});
+		} else {
+			IntModel = new Interview();
+		}
+		// Post comment to server
+        IntModel.save({'firstName': fname, 
+					  'lastName': lname, 
+					  'interviewDate': true,
+					  'interested': intrested, 
+					  'interviewNumber': number, 
+					  'interviewDate': date,}, {
+		        success: function(response) {
+		            console.log(response);
+		        },
+		        error: function(model, xhr) {
+		            console.log(xhr.status);
+		        }
+        });
+	},
+
+	delete: function(e) {
+		var id = $(e.target).attr('id');
+		new Interview({'objectId': id}).destroy();
+	}
+
+	});
+
+	// Defining routes
+	var Router = Backbone.Router.extend({
+		routes: {'' : 'home'}
+	});
+
+	var view = new View( {el: $("#main")});
+	var router = new Router();
+	
+	router.on('route:home', function() {
+		view.render();
+	})
+
+	Backbone.history.start();
+
+});
+</script>
+
+<div id="main">
+	<div>
+    <form id="create-interview">
+        <label for="fname">First Name</label>
+        <input type="text" id="fname" name="firstname">
+        <label for="lname">Last Name</label>
+        <input type="text" id="lname" name="lastname">
+        <label for="number">Number</label>
+        <input type="text" id="number" name="number">
+        <label for="date">Date</label>
+        <input type="text" id="date" name="date">
+        <label for="intrested">Intrested</label>
+        <select id="intrested" name="intrested">
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+        </select>
+        <input type="hidden" id="in-id" value=""/>
+        <input id='submit' type="submit" value="Submit"> 
+    </form>
+</div>
+
+</div>
+
+</body>
+</html>
